@@ -1,6 +1,147 @@
-<html>
-  <head>
-    <title> AI 어플 </title>
-  </head>
-  <body>아무 글이나 입력해 보세요.</body>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>자세 분석기</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background: #f0f4f8;
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 16px;
+        }
+
+        button {
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #357ab8;
+        }
+
+        #webcam-container {
+            margin-top: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            border-radius: 12px;
+        }
+
+        #label-container {
+            margin-top: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .result-card {
+            padding: 20px 30px;
+            border-radius: 12px;
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+            text-align: center;
+            min-width: 250px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .good {
+            background-color: #4CAF50; /* 초록색 */
+        }
+
+        .bad {
+            background-color: #F44336; /* 빨강색 */
+        }
+
+        .percentage {
+            font-size: 16px;
+            font-weight: normal;
+            margin-top: 8px;
+            color: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>📏 자세 분석기</h1>
+    <button onclick="init()">웹캠 시작</button>
+    <div id="webcam-container"></div>
+    <div id="label-container"></div>
+
+    <script type="text/javascript">
+        const URL = "https://teachablemachine.withgoogle.com/models/rpQwc1m6A/";
+
+        let model, webcam, labelContainer, maxPredictions;
+
+        async function init() {
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            model = await tmImage.load(modelURL, metadataURL);
+            maxPredictions = model.getTotalClasses();
+
+            webcam = new tmImage.Webcam(224, 224, true);
+            await webcam.setup();
+            await webcam.play();
+            window.requestAnimationFrame(loop);
+
+            document.getElementById("webcam-container").appendChild(webcam.canvas);
+            labelContainer = document.getElementById("label-container");
+        }
+
+        async function loop() {
+            webcam.update();
+            await predict();
+            window.requestAnimationFrame(loop);
+        }
+
+        async function predict() {
+            const prediction = await model.predict(webcam.canvas);
+
+            // 가장 높은 확률의 클래스를 찾기
+            let best = prediction[0];
+            for (let i = 1; i < prediction.length; i++) {
+                if (prediction[i].probability > best.probability) {
+                    best = prediction[i];
+                }
+            }
+
+            // 라벨 영역 초기화
+            labelContainer.innerHTML = "";
+
+            // 결과 카드 생성
+            const resultDiv = document.createElement("div");
+            resultDiv.className = "result-card " + (best.className === "good" ? "good" : "bad");
+
+            const label = best.className === "good" ? "✅ 바른 자세입니다!" : "⚠️ 나쁜 자세입니다!";
+            resultDiv.innerHTML = `${label}<div class="percentage">(정확도: ${(best.probability * 100).toFixed(1)}%)</div>`;
+
+            labelContainer.appendChild(resultDiv);
+        }
+    </script>
+</body>
 </html>
+
